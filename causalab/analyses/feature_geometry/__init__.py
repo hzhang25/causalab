@@ -1,0 +1,2 @@
+"""Feature-geometry analysis package."""
+

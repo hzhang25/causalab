@@ -1,0 +1,30 @@
+# @package _global_
+defaults:
+- /base
+- /task: natural_domains_arithmetic_months
+- /model: llama31_8b
+- /analysis/subspace
+- /analysis/feature_geometry
+- /analysis/activation_manifold
+- /analysis/output_manifold
+- /analysis/path_steering
+- _self_
+
+task:
+  target_variable: result
+  number_range: 28
+  templates:
+    - "Q: What month is {number} months after {entity}?\nA:"
+    - "If the month is {entity}, what month will it be in {number} months?\nA:"
+    - "Starting in {entity}, advance {number} months. What month do you reach?\nA:"
+    - "On a yearly calendar, {number} months after {entity} is what month?\nA:"
+    - "Count forward {number} months from {entity}. The resulting month is"
+
+subspace:
+  layers: [28]
+
+activation_manifold:
+  layers: [28]
+
+path_steering:
+  path_modes: [geometric, linear, additive_probe, dual_probe]

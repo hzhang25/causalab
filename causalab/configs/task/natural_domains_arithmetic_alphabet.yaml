@@ -3,6 +3,7 @@ domain_type: alphabet
 variant: alphabet
 number_range: null
 number_groups: null
+templates: null
 max_new_tokens: 1
 colormap: vanimo
 colormap_range: [0.15, 0.85]

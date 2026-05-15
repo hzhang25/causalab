@@ -1,0 +1,33 @@
+# @package _global_
+defaults:
+- /base
+- /task: natural_domains_arithmetic_weekdays
+- /model: llama31_8b
+- /analysis/subspace
+- /analysis/feature_geometry
+- /analysis/activation_manifold
+- /analysis/output_manifold
+- /analysis/path_steering
+- _self_
+
+task:
+  target_variable: result
+  number_range: 28
+  templates:
+    - "Q: What day is {number} days after {entity}?\nA:"
+    - "If today is {entity}, what day will it be in {number} days?\nA:"
+    - "Starting on {entity}, advance {number} days. What day do you reach?\nA:"
+    - "On a weekly calendar, {number} days after {entity} is what day?\nA:"
+    - "Count forward {number} days from {entity}. The resulting day is"
+
+subspace:
+  layers: [5, 10, 15, 20, 25, 28, 31]
+
+activation_manifold:
+  layers: [28]
+
+path_steering:
+  path_modes: [geometric, linear, additive_probe, dual_probe]
+  n_extra_pairs: 29
+  isometry:
+    n_interior_per_pair: 4

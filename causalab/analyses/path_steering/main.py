@@ -359,11 +359,41 @@ def main(cfg: DictConfig) -> dict[str, Any]:
         path_modes_cfg = list(
             OmegaConf.to_container(analysis.get("path_modes"), resolve=True)
         )
+        probe_weight = None
+        probe_cfg = analysis.get("probe", OmegaConf.create({}))
+        if any(m in {"additive_probe", "dual_probe"} for m in path_modes_cfg):
+            from causalab.methods.probes import find_probe_dir, load_probe
+
+            probe_dir = find_probe_dir(
+                root,
+                ss_sub,
+                target_variable=tv,
+                layer=layer,
+                token_position=_tp_name,
+                feature_space=probe_cfg.get("feature_space", "activation"),
+                feature_geometry_subdir=probe_cfg.get("subdir", "probes"),
+            )
+            if probe_dir is None:
+                logger.warning(
+                    "Probe path mode requested but no probe artifact found for "
+                    "%s layer=%s token_position=%s; skipping probe modes",
+                    ss_sub,
+                    layer,
+                    _tp_name,
+                )
+                path_modes_cfg = [
+                    m for m in path_modes_cfg if m not in {"additive_probe", "dual_probe"}
+                ]
+            else:
+                probe_weight, _probe_meta = load_probe(probe_dir)
+                logger.info("Loaded probe for path steering: %s", probe_dir)
         path_modes = resolve_path_modes(
             path_modes_cfg=path_modes_cfg,
             composed_featurizer=featurizer
             if isinstance(featurizer, ComposedFeaturizer)
             else None,
+            probe_weight=probe_weight,
+            probe_cfg=probe_cfg,
         )
 
         # --- Collect centroid-pair distributions per path mode ---
@@ -473,19 +503,19 @@ def main(cfg: DictConfig) -> dict[str, Any]:
         pca_path = os.path.join(_feat_dir, "training_features.safetensors")
         raw_path = os.path.join(_feat_dir, "raw_features.safetensors")
         pca_features = _load_file(pca_path)["features"]  # (N, k)
-        _use_linear = any(getattr(pm, "label", None) == "linear" for pm in path_modes)
+        _use_raw = any(getattr(pm, "centroid_space", None) == "raw" for pm in path_modes)
         _raw_features_missing = not os.path.exists(raw_path)
-        if _use_linear and not _raw_features_missing:
+        if _use_raw and not _raw_features_missing:
             raw_features = _load_file(raw_path)["features"]  # (N, D)
-        elif _use_linear and _raw_features_missing:
+        elif _use_raw and _raw_features_missing:
             logger.warning(
                 "raw_features.safetensors not found at %s; "
-                "skipping linear path mode (re-run subspace analysis to regenerate)",
+                "skipping raw-space path modes (re-run subspace analysis to regenerate)",
                 raw_path,
             )
-            # Remove linear path mode to avoid shape mismatch
+            # Remove raw-space modes to avoid shape mismatch
             path_modes = [
-                pm for pm in path_modes if getattr(pm, "label", None) != "linear"
+                pm for pm in path_modes if getattr(pm, "centroid_space", None) != "raw"
             ]
             raw_features = pca_features  # placeholder, unused
         else:
@@ -721,6 +751,8 @@ def main(cfg: DictConfig) -> dict[str, Any]:
                             manifold_obj=manifold_obj,
                             oversteer_frac=oversteer_frac,
                             oversteer_steps=oversteer_steps,
+                            start_index=si,
+                            end_index=ei,
                         )
                         _gp_list.append(gp.cpu())
                     pair_grid_points = _torch.stack(_gp_list)
@@ -755,6 +787,8 @@ def main(cfg: DictConfig) -> dict[str, Any]:
                             manifold_obj=manifold_obj,
                             oversteer_frac=oversteer_frac,
                             oversteer_steps=oversteer_steps,
+                            start_index=si,
+                            end_index=ei,
                         )
                         from causalab.methods.steer.collect import (
                             collect_grid_distributions,
@@ -880,6 +914,14 @@ def main(cfg: DictConfig) -> dict[str, Any]:
                 n_extra = int(analysis.get("n_extra_pairs", 0))
                 if replot_only:
                     n_extra = 0
+                if getattr(pm, "path_kind", None) in {"additive_probe", "dual_probe"}:
+                    if n_extra > 0:
+                        logger.info(
+                            "Skipping extra cross-path pairs for %s; probe modes "
+                            "are defined by centroid class endpoints.",
+                            pm.label,
+                        )
+                    n_extra = 0
                 if n_extra > 0:
                     import random as _random
 
@@ -918,6 +960,8 @@ def main(cfg: DictConfig) -> dict[str, Any]:
                                 cents[j],
                                 K_iso + 2,
                                 manifold_obj=manifold_obj,
+                                start_index=i,
+                                end_index=j,
                             )[1 : K_iso + 1]
                             for k in range(K_iso):
                                 vertices.append((interior[k], frozenset({i, j})))

@@ -3,6 +3,7 @@ domain_type: weekdays
 variant: weekdays
 number_range: null
 number_groups: null
+templates: null
 max_new_tokens: 1
 colormap: rainbow
 colormap2: null

@@ -63,6 +63,8 @@ class NaturalDomainConfig:
                 for k in ("number_range", "result_entities")
                 if getattr(self, k) is not None
             }
+            if self.template:
+                explicit_skip.add("template")
             for k, v in preset.items():
                 if k in explicit_skip:
                     continue

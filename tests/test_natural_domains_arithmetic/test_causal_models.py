@@ -116,6 +116,28 @@ def test_weekdays_raw_input():
     assert trace["raw_output"] == " Sunday"
 
 
+def test_weekdays_template_variations_expand_inputs():
+    templates = [
+        "Q: What day is {number} days after {entity}?\nA:",
+        "If today is {entity}, what day will it be in {number} days?\nA:",
+    ]
+    cfg = NaturalDomainConfig(
+        domain_type="weekdays",
+        number_range=2,
+        template=templates,
+    )
+    model = create_causal_model(cfg)
+    trace = model.new_trace(
+        {"entity": "Monday", "number": "one", "template": templates[1]}
+    )
+    assert trace["raw_input"] == (
+        "If today is Monday, what day will it be in one days?\nA:"
+    )
+    assert trace["result"] == "Tuesday"
+    assert model.values["template"] == templates
+    assert len(model.enumerate_inputs()) == 7 * 2 * 2
+
+
 def test_months_raw_input():
     cfg = NaturalDomainConfig(domain_type="months")
     model = create_causal_model(cfg)
@@ -228,6 +250,29 @@ def test_load_task_integration():
         trace = task.causal_model.sample_input()
         assert "raw_input" in trace
         assert "raw_output" in trace
+
+
+def test_resolve_task_accepts_template_overrides():
+    from causalab.runner.helpers import resolve_task
+
+    templates = [
+        "Q: What day is {number} days after {entity}?\nA:",
+        "Starting on {entity}, advance {number} days. What day do you reach?\nA:",
+    ]
+    task, _cfg = resolve_task(
+        "natural_domains_arithmetic",
+        {
+            "domain_type": "weekdays",
+            "number_range": 2,
+            "number_groups": None,
+            "result_entities": None,
+            "templates": templates,
+        },
+        target_variable="result",
+    )
+    assert task.template == templates
+    assert task.causal_model.values["template"] == templates
+    assert len(task.causal_model.enumerate_inputs()) == 7 * 2 * 2
 
 
 def test_load_task_random():

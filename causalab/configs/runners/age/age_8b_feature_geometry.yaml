@@ -1,0 +1,29 @@
+# @package _global_
+defaults:
+- /base
+- /task: natural_domains_arithmetic_age
+- /model: llama31_8b
+- /analysis/subspace
+- /analysis/feature_geometry
+- /analysis/activation_manifold
+- /analysis/output_manifold
+- /analysis/path_steering
+- _self_
+
+task:
+  target_variable: result
+  templates:
+    - "Alice is {entity} years old. Bob is {number} years older than Alice. Q: How old is Bob?\nA: Bob is "
+    - "Alice's age is {entity}. Bob is {number} years older. Bob's age is "
+    - "If Alice is {entity} years old and Bob is {number} years older, Bob is "
+    - "Bob is {number} years older than Alice, who is {entity}. Bob is "
+    - "Age puzzle: Alice is {entity}, and Bob is {number} years older. Bob's age is "
+
+subspace:
+  layers: [28]
+
+activation_manifold:
+  layers: [28]
+
+path_steering:
+  path_modes: [geometric, linear, additive_probe, dual_probe]

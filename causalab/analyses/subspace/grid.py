@@ -109,6 +109,8 @@ def run_pca_grid(
         - ``features_by_key``: Dict[(layer, pos_id) -> Tensor (N, k)]
           projected features for each grid position (for per-layer_x_pos
           scatter plots).
+        - ``raw_features_by_key``: Dict[(layer, pos_id) -> Tensor (N, d_model)]
+          raw activation features for downstream probes.
     """
     from causalab.neural.activations.collect import collect_features
     from causalab.methods.pca import compute_svd
@@ -116,6 +118,7 @@ def run_pca_grid(
     scores: dict[tuple, float] = {}
     svd_results_by_cell: dict[tuple, dict] = {}
     features_by_key: dict[tuple, Any] = {}
+    raw_features_by_key: dict[tuple, Any] = {}
 
     for key, target in targets.items():
         unit = target.flatten()[0]
@@ -131,6 +134,7 @@ def run_pca_grid(
         svd_results_by_cell[key] = svd[unit.id]
 
         rotation = svd[unit.id]["rotation"]
+        raw_features_by_key[key] = raw[unit.id].detach()
         features_by_key[key] = (
             raw[unit.id].detach().float() @ rotation.float()
         ).detach()
@@ -146,6 +150,7 @@ def run_pca_grid(
         "scores": scores,
         "svd_results_by_cell": svd_results_by_cell,
         "features_by_key": features_by_key,
+        "raw_features_by_key": raw_features_by_key,
     }
 
 

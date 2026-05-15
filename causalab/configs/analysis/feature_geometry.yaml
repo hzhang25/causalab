@@ -1,0 +1,18 @@
+# @package feature_geometry
+_name_: feature_geometry
+_subdir: probes
+_output_dir: ${experiment_root}/feature_geometry/${._subdir}
+
+subspace: null
+feature_spaces:
+  - activation
+  - pca
+train_frac: 0.8
+batch_size: 256
+epochs: 500
+lr: 0.05
+weight_decay: 0.0001
+random_control: false
+
+visualization:
+  figure_format: pdf

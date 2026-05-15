@@ -1,0 +1,38 @@
+# @package _global_
+defaults:
+- /base
+- /task: graph_walk_grid_5x5
+- /model: llama31_8b
+- /analysis/subspace
+- /analysis/feature_geometry
+- /analysis/activation_manifold
+- /analysis/output_manifold
+- /analysis/path_steering
+- _self_
+
+task:
+  target_variable: node_coordinates
+
+subspace:
+  layers: [28]
+  k_features: 64
+  batch_size: 8
+  token_positions: [last]
+
+activation_manifold:
+  layers: [28]
+  intrinsic_mode: parameter
+  intrinsic_dim: 2
+  batch_size: 8
+  token_positions: [last]
+
+output_manifold:
+  intrinsic_mode: parameter
+  intrinsic_dim: 2
+  batch_size: 8
+
+path_steering:
+  path_modes: [geometric, linear, additive_probe, dual_probe]
+  batch_size: 8
+  num_steps_along_path: 20
+  n_prompts: 5

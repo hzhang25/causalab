@@ -80,11 +80,15 @@ def resolve_task(
     elif task_name == "natural_domains_arithmetic":
         from causalab.tasks.natural_domains_arithmetic.config import NaturalDomainConfig
 
+        template_override = task_config.get("templates", None)
+        if template_override is None:
+            template_override = task_config.get("template", "")
         task_cfg_raw = NaturalDomainConfig(
             domain_type=task_config["domain_type"],
             number_range=task_config.get("number_range", None),
             number_groups=task_config.get("number_groups", None),
             result_entities=task_config.get("result_entities", None),
+            template=template_override,
         )
 
     task = load_task(task_name, task_cfg=task_cfg_raw)

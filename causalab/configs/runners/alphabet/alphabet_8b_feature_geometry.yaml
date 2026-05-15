@@ -1,0 +1,29 @@
+# @package _global_
+defaults:
+- /base
+- /task: natural_domains_arithmetic_alphabet
+- /model: llama31_8b
+- /analysis/subspace
+- /analysis/feature_geometry
+- /analysis/activation_manifold
+- /analysis/output_manifold
+- /analysis/path_steering
+- _self_
+
+task:
+  target_variable: result
+  templates:
+    - "Consider letters in the alphabet. Starting at letter {entity}, we increment by {number}. The result is letter"
+    - "In the alphabet, move forward {number} letters from {entity}. The letter you land on is"
+    - "Start at {entity} and advance {number} positions through the alphabet. The resulting letter is"
+    - "Alphabet puzzle: {number} letters after {entity} comes the letter"
+    - "If you count {number} letters forward from {entity}, you reach"
+
+subspace:
+  layers: [28]
+
+activation_manifold:
+  layers: [28]
+
+path_steering:
+  path_modes: [geometric, linear, additive_probe, dual_probe]

@@ -331,6 +331,7 @@ def _save_per_layer_x_pos_scatters(
 def _save_pca_per_cell_artifacts(
     svd_results_by_cell: dict[tuple, dict],
     features_by_key: dict[tuple, Any],
+    raw_features_by_key: dict[tuple, Any] | None,
     out_dir: str,
 ) -> None:
     """Save rotation matrix and projected features for every PCA grid cell.
@@ -357,7 +358,7 @@ def _save_pca_per_cell_artifacts(
             os.path.join(cell_dir, "rotation.safetensors"),
         )
 
-        # features/training_features.safetensors
+        # features/training_features.safetensors and raw_features.safetensors
         features = features_by_key.get((layer, pos_id))
         if features is not None:
             feat_dir = os.path.join(cell_dir, "features")
@@ -366,6 +367,16 @@ def _save_pca_per_cell_artifacts(
                 {"features": features.contiguous()},
                 os.path.join(feat_dir, "training_features.safetensors"),
             )
+            raw_features = (
+                raw_features_by_key.get((layer, pos_id))
+                if raw_features_by_key is not None
+                else None
+            )
+            if raw_features is not None:
+                save_file(
+                    {"features": raw_features.contiguous()},
+                    os.path.join(feat_dir, "raw_features.safetensors"),
+                )
         saved += 1
 
     logger.info(
@@ -566,6 +577,7 @@ def _run_grid(
         _save_pca_per_cell_artifacts(
             grid_result["svd_results_by_cell"],
             grid_result["features_by_key"],
+            grid_result.get("raw_features_by_key"),
             out_dir,
         )
 
@@ -750,7 +762,6 @@ def _run_single_cell(
             "unset to auto-resolve both layer and token_position from locate/ results."
         )
     targets, _tp_list = build_targets_for_grid(pipeline, task, [layer], position_names)
-    token_pos = _tp_list[0]
     target = next(iter(targets.values()))
 
     result: dict[str, Any] = {
@@ -918,7 +929,7 @@ def _dispatch_grid_or_single(
         layers_cfg = list(range(pipeline.model.config.num_hidden_layers))
 
     if layers_cfg is not None:
-        layers = [int(l) for l in layers_cfg]
+        layers = [int(layer_id) for layer_id in layers_cfg]
         if len(layers) == 1:
             # Single-cell mode
             layer = layers[0]

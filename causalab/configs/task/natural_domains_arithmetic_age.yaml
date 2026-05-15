@@ -3,6 +3,7 @@ domain_type: age
 variant: age
 number_range: null
 number_groups: null
+templates: null
 max_new_tokens: 1
 colormap: viridis
 colormap2: null

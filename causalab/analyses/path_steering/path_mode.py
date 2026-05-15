@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 CentroidSpace = Literal["intrinsic", "raw", "pca"]
-PathKind = Literal["geodesic", "linear"]
+PathKind = Literal["geodesic", "linear", "additive_probe", "dual_probe"]
 
 
 # ---------------------------------------------------------------------------
@@ -130,6 +130,11 @@ class PathMode:
     centroid_space: CentroidSpace
     path_kind: PathKind
     featurizer_override: Featurizer | None = None
+    probe_weight: Tensor | None = None
+    dual_eta: float = 0.01
+    dual_alpha: float = 1e-3
+    dual_target_prob: float | None = None
+    additive_scale_to_endpoint: bool = True
 
     def select_centroids(
         self,
@@ -150,12 +155,45 @@ class PathMode:
         manifold_obj: Any | None = None,
         oversteer_frac: float = 0.0,
         oversteer_steps: int = 0,
+        start_index: int | None = None,
+        end_index: int | None = None,
     ) -> Tensor:
         """Build the (n_steps [+ oversteer_steps], d) path between two endpoints.
 
         When ``path_kind="geodesic"`` but no manifold is available, falls back
         to a straight line — preserves the historical fallback behaviour.
         """
+        if self.path_kind == "additive_probe":
+            if self.probe_weight is None or start_index is None or end_index is None:
+                logger.warning("%s missing probe/class indices; falling back to linear path", self.label)
+            else:
+                from causalab.methods.dual_steering import additive_probe_path
+
+                return additive_probe_path(
+                    start,
+                    end,
+                    self.probe_weight[start_index],
+                    self.probe_weight[end_index],
+                    n_steps + oversteer_steps,
+                    scale_to_endpoint=self.additive_scale_to_endpoint,
+                )
+        if self.path_kind == "dual_probe":
+            if self.probe_weight is None or start_index is None or end_index is None:
+                logger.warning("%s missing probe/class indices; falling back to linear path", self.label)
+            else:
+                from causalab.methods.dual_steering import dual_steer_path
+
+                beta = self.probe_weight[end_index] - self.probe_weight[start_index]
+                return dual_steer_path(
+                    start,
+                    target_class=end_index,
+                    beta=beta,
+                    probe_W=self.probe_weight,
+                    n_steps=n_steps + oversteer_steps,
+                    eta=self.dual_eta,
+                    alpha=self.dual_alpha,
+                    target_prob=self.dual_target_prob,
+                )
         if self.path_kind == "geodesic" and manifold_obj is not None:
             return _build_geodesic_path(
                 start,
@@ -177,6 +215,8 @@ class PathMode:
 def resolve_path_modes(
     path_modes_cfg: list,
     composed_featurizer: ComposedFeaturizer | None = None,
+    probe_weight: Tensor | None = None,
+    probe_cfg: Any | None = None,
 ) -> list[PathMode]:
     """Resolve each path_mode config entry into a :class:`PathMode`.
 
@@ -184,6 +224,8 @@ def resolve_path_modes(
     - ``"geometric"`` — geodesic path in intrinsic (u-space) coordinates.
     - ``"linear"`` — straight-line path in raw activation space (identity featurizer).
     - ``"linear_subspace"`` — straight-line path in PCA-reduced subspace.
+    - ``"additive_probe"`` — raw-space path along probe-vector difference.
+    - ``"dual_probe"`` — raw-space Fisher-preconditioned probe-softmax path.
     """
     results: list[PathMode] = []
 
@@ -218,6 +260,30 @@ def resolve_path_modes(
                     centroid_space="pca",
                     path_kind="linear",
                     featurizer_override=pca_override,
+                )
+            )
+        elif mode == "additive_probe":
+            results.append(
+                PathMode(
+                    label="additive_probe",
+                    centroid_space="raw",
+                    path_kind="additive_probe",
+                    featurizer_override=Featurizer(id="identity"),
+                    probe_weight=probe_weight,
+                    additive_scale_to_endpoint=bool(getattr(probe_cfg, "scale_to_endpoint", True)),
+                )
+            )
+        elif mode == "dual_probe":
+            results.append(
+                PathMode(
+                    label="dual_probe",
+                    centroid_space="raw",
+                    path_kind="dual_probe",
+                    featurizer_override=Featurizer(id="identity"),
+                    probe_weight=probe_weight,
+                    dual_eta=float(getattr(probe_cfg, "eta", 0.01)),
+                    dual_alpha=float(getattr(probe_cfg, "alpha", 1e-3)),
+                    dual_target_prob=getattr(probe_cfg, "target_prob", None),
                 )
             )
         else:

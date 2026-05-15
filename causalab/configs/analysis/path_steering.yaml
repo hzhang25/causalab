@@ -66,6 +66,17 @@ oversteer:
   frac: 0.0       # 0 = disabled; controls how far beyond the target to go (as fraction of path length)
   num_steps: 10   # number of steps in the overshoot region (independent of num_steps_along_path)
 
+# Probe-steering modes are opt-in via:
+#   path_modes: [geometric, linear, additive_probe, dual_probe]
+# They require `/analysis/feature_geometry` to have run first.
+probe:
+  subdir: probes
+  feature_space: activation
+  eta: 0.01
+  alpha: 0.001
+  target_prob: 0.99
+  scale_to_endpoint: true
+
 # ---------------------------------------------------------------------------
 # Visualization
 # ---------------------------------------------------------------------------
@@ -88,6 +99,8 @@ path_visualization:
   path_colors:
     geometric: black
     linear: darkgray
+    additive_probe: royalblue
+    dual_probe: firebrick
   full_vocab_softmax: true
   # Which PCA component indices to render in the 3D path plots
   # (vis/paths/3d_paths/<a>_<b>.html). Length 3, all indices < k_features.
